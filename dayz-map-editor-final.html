@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>DayZ Map Editor – Custom Maps + dayz.xam.nu</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#1a1a1a;color:#e0e0e0;overflow:hidden;user-select:none}
+    .app-container{display:flex;height:100vh}
+    .sidebar{width:400px;background:#252525;border-right:2px solid #3a3a3a;display:flex;flex-direction:column;overflow:hidden}
+    .sidebar-header{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:20px;text-align:center}
+    .sidebar-content{flex:1;overflow-y:auto;padding:15px}
+    .map-container{flex:1;position:relative;background:#0a0a0a;overflow:hidden}
+    #mapCanvas{cursor:crosshair;position:absolute;top:0;left:0}
+    .map-controls{position:absolute;top:20px;right:20px;display:flex;flex-direction:column;gap:10px;z-index:1000}
+    .control-btn{width:40px;height:40px;background:rgba(102,126,234,.9);border:none;border-radius:8px;color:#fff;font-size:20px;cursor:pointer;transition:all .3s ease}
+    .control-btn:hover{background:rgba(118,75,162,.9);transform:scale(1.1)}
+    .context-menu{position:fixed;background:rgba(37,37,37,.98);border:1px solid #667eea;border-radius:8px;padding:5px;display:none;z-index:10000;min-width:200px;box-shadow:0 4px 20px rgba(0,0,0,.5)}
+    .context-menu-item{padding:10px 15px;cursor:pointer;border-radius:4px;transition:background .2s ease}
+    .context-menu-item:hover{background:rgba(102,126,234,.3)}
+    .coords-display{position:absolute;bottom:20px;left:20px;background:rgba(37,37,37,.9);padding:10px 15px;border-radius:8px;font-family:'Courier New',monospace;font-size:14px;backdrop-filter:blur(10px);border:1px solid rgba(102,126,234,.3)}
+    .zone-item{background:#2a2a2a;border-radius:6px;padding:12px;margin-bottom:10px;cursor:pointer;transition:all .3s ease;border:2px solid transparent}
+    .zone-item:hover{background:#333;border-color:rgba(102,126,234,.5)}
+    .zone-item.selected{background:#353535;border-color:#667eea}
+    .form-group{margin-bottom:15px}
+    .form-group label{display:block;margin-bottom:5px;font-size:13px;color:#aaa}
+    .form-group input,.form-group select{width:100%;padding:8px;background:#1a1a1a;border:1px solid #3a3a3a;border-radius:4px;color:#e0e0e0;font-size:14px}
+    .form-group input:focus,.form-group select:focus{outline:none;border-color:#667eea;box-shadow:0 0 0 2px rgba(102,126,234,.2)}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .btn{padding:10px 20px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:14px;font-weight:500;transition:all .3s ease}
+    .btn:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(102,126,234,.4)}
+    .btn-success{background:linear-gradient(135deg,#42e695 0%,#3bb2b8 100%)}
+    .btn-danger{background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%)}
+    .btn-secondary{background:linear-gradient(135deg,#4a4a4a 0%,#2a2a2a 100%)}
+    .btn-small{padding:6px 12px;font-size:12px}
+    .quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:15px;background:#1a1a1a}
+    .quick-action-btn{background:#333;border:1px solid #444;color:#e0e0e0;padding:8px;border-radius:4px;cursor:pointer;font-size:12px;transition:all .2s ease}
+    .quick-action-btn:hover{background:#444;border-color:#667eea}
+    .tabs{display:flex;background:#1a1a1a;border-radius:8px 8px 0 0;overflow:hidden;margin-bottom:-1px}
+    .tab{flex:1;padding:10px;background:#1a1a1a;border:none;color:#999;cursor:pointer;transition:all .3s ease;font-size:13px}
+    .tab.active{background:#2a2a1a;color:#667eea;border-bottom:2px solid #667eea}
+    .tab:hover:not(.active){background:#222}
+    .tab-content{display:none;background:#2a2a2a;border-radius:0 0 8px 8px;padding:15px}
+    .tab-content.active{display:block}
+    .empty-state{text-align:center;padding:40px 20px;color:#666}
+    .empty-state-icon{font-size:48px;margin-bottom:10px}
+    .legend{position:absolute;top:20px;left:20px;background:rgba(37,37,37,.9);padding:15px;border-radius:8px;backdrop-filter:blur(10px);border:1px solid rgba(102,126,234,.3)}
+    .legend h3{margin-bottom:10px;color:#667eea;font-size:14px}
+    .legend-item{display:flex;align-items:center;margin-bottom:8px;font-size:12px}
+    .legend-color{width:20px;height:20px;margin-right:10px;border-radius:4px}
+    .display-menu{margin-top:10px}
+    .display-menu h4{margin-bottom:8px;color:#667eea;font-size:12px}
+    .display-menu label{display:flex;align-items:center;margin-bottom:6px;cursor:pointer;font-size:12px}
+    .display-menu input[type=checkbox]{margin-right:8px}
+    ::-webkit-scrollbar{width:8px}
+    ::-webkit-scrollbar-track{background:#1a1a1a}
+    ::-webkit-scrollbar-thumb{background:#444;border-radius:4px}
+    ::-webkit-scrollbar-thumb:hover{background:#555}
+
+    /* NEU: Custom Map Modal */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;place-items:center;z-index:20000}
+    .modal{background:#2a2a2a;border:1px solid #667eea;border-radius:8px;padding:20px;width:90%;max-width:500px;color:#e0e0e0}
+    .modal h3{margin-bottom:15px;color:#667eea}
+    .modal .form-group{margin-bottom:15px}
+    .modal .stretch-warning{padding:10px;border-radius:6px;margin-top:10px;font-size:.9rem;display:none}
+    .modal .stretch-warning.good{background:#2a4a2a;border:1px solid #42e695}
+    .modal .stretch-warning.warning{background:#4a4a2a;border:1px solid #ffa500}
+    .modal .stretch-warning.bad{background:#4a2a2a;border:1px solid #f5576c}
+    .modal img{max-width:100%;max-height:200px;display:none;margin-top:10px;border:1px solid #333;border-radius:4px}
+  </style>
+</head>
+<body>
+<div class="app-container">
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h1>🎯 DayZ Map Editor – Custom Maps</h1>
+      <p style="font-size:12px;opacity:.9">Visual zone placement system</p>
+      <!-- NEU: Map-Auswahl -->
+      <div class="form-group" style="margin-top:10px">
+        <label>Map:</label>
+        <select id="mapSelect" onchange="switchMap(this.value)">
+          <option value="chernarus">Chernarus (15360 m)</option>
+          <option value="livonia">Livonia (12800 m)</option>
+          <option value="namalsk">Namalsk (12288 m)</option>
+          <option value="deerisle">Deer Isle (16384 m)</option>
+          <option value="chiemsee">Chiemsee (10240 m)</option>
+          <option value="esseker">Esseker (10240 m)</option>
+          <option value="rostow">Rostow (10240 m)</option>
+          <option value="pripyat">Pripyat (10240 m)</option>
+          <option value="valning">Valning (10240 m)</option>
+          <option value="bitterroot">Bitterroot (8192 m)</option>
+          <option value="takistanplus">Takistan Plus (13312 m)</option>
+          <option value="iztek">Iztek (8192 m)</option>
+          <option value="melkart">Melkart (8192 m)</option>
+          <option value="sakhal">Sakhal (14336 m)</option>
+          <option value="custom">➕ Load Custom Map...</option>
+        </select>
+      </div>
+    </div>
+    <div class="sidebar-content">
+      <div class="quick-actions">
+        <button class="quick-action-btn" onclick="loadSampleData()">📦 Sample</button>
+        <button class="quick-action-btn" onclick="document.getElementById('importZonesFile').click()">📥 Zones</button>
+        <button class="quick-action-btn" onclick="document.getElementById('importTiersFile').click()">📥 Tiers</button>
+        <button class="quick-action-btn" onclick="exportZones()">💾 Export Z</button>
+        <button class="quick-action-btn" onclick="exportTiers()">💾 Export T</button>
+        <button class="quick-action-btn" onclick="clearAll()">🗑️ Clear</button>
+      </div>
+      <input type="file" id="importZonesFile" style="display:none" accept=".json" onchange="importZonesFile(event)">
+      <input type="file" id="importTiersFile" style="display:none" accept=".json" onchange="importTiersFile(event)">
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('zones',this)">Zones</button>
+        <button class="tab" onclick="switchTab('selected',this)">Selected</button>
+        <button class="tab" onclick="switchTab('tiers',this)">Tiers</button>
+      </div>
+      <div id="zonesTab" class="tab-content active"><div id="zonesList"></div></div>
+      <div id="selectedTab" class="tab-content"><div id="selectedZonePanel"></div></div>
+      <div id="tiersTab" class="tab-content"><div id="tiersList"></div><button class="btn btn-success" onclick="addTier()" style="width:100%;margin-top:10px">+ Add New Tier</button></div>
+    </div>
+  </div>
+
+  <div class="map-container">
+    <canvas id="mapCanvas"></canvas>
+    <div class="map-controls">
+      <button class="control-btn" onclick="zoomIn()" title="Zoom In">+</button>
+      <button class="control-btn" onclick="zoomOut()" title="Zoom Out">−</button>
+      <button class="control-btn" onclick="resetView()" title="Reset View">⟲</button>
+      <button class="control-btn" onclick="toggleGrid()" title="Toggle Grid">#</button>
+    </div>
+    <div class="legend">
+      <h3>Map Legend</h3>
+      <div class="legend-item"><div class="legend-color" style="background:rgba(102,126,234,.3);border:2px solid #667eea"></div><span>Active Zone</span></div>
+      <div class="legend-item"><div class="legend-color" style="background:rgba(66,230,149,.3);border:2px solid #42e695"></div><span>Selected Zone</span></div>
+      <div class="legend-item"><div class="legend-color" style="background:rgba(255,165,0,.5)"></div><span>Spawn Point</span></div>
+      <div class="display-menu">
+        <h4>Show</h4>
+        <label><input type="checkbox" id="showSpawnPoints" checked onchange="toggleDisplay('spawnPoints',this.checked)"> Spawn Points</label><br>
+        <label><input type="checkbox" id="showDespawnRadius" onchange="toggleDisplay('despawnRadius',this.checked)"> Despawn Radius</label><br>
+        <label><input type="checkbox" id="showZoneNames" checked onchange="toggleDisplay('zoneNames',this.checked)"> Zone Names</label>
+      </div>
+    </div>
+    <div class="coords-display">
+      <div>Mouse: <span id="mouseCoords">0, 0</span></div>
+      <div>DayZ: <span id="gameCoords">0, 0, 0</span></div>
+    </div>
+    <div id="contextMenu" class="context-menu">
+      <div class="context-menu-item" onclick="createZoneAtCursor()">📍 Create Zone Here</div>
+      <div class="context-menu-item" id="addSpawnPointItem" onclick="addSpawnPointAtCursor()" style="display:none">🎯 Add Spawn Point Here</div>
+      <div class="context-menu-item" onclick="hideContextMenu()">❌ Cancel</div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Custom Map -->
+<div class="modal-overlay" id="customModal" onclick="closeCustomMapModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>Load Custom Map</h3>
+    <div class="form-group">
+      <label>Map Name</label>
+      <input type="text" id="customMapName" placeholder="e.g. MyCustomMap">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Width (m)</label>
+        <input type="number" id="customMapWidth" placeholder="10368" oninput="updateStretchWarning()">
+      </div>
+      <div class="form-group">
+        <label>Height (m)</label>
+        <input type="number" id="customMapHeight" placeholder="5687" oninput="updateStretchWarning()">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Map Image (JPG/PNG)</label>
+      <input type="file" id="customMapFile" accept="image/*" onchange="previewCustomMap(event)">
+    </div>
+    <div id="mapPlaceholder" style="text-align:center;color:#999;font-size:13px;margin-top:10px">No image selected</div>
+    <img id="mapPreview" alt="Preview" />
+    <div id="stretchWarning" class="stretch-warning">
+      <div id="stretchPercent"></div>
+      <div id="stretchMessage"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="btn btn-success" onclick="loadCustomMap()">Load Map</button>
+      <button class="btn btn-secondary" onclick="closeCustomMapModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ----------  globale Variablen  ---------- */
+let canvas, ctx, mapImage, mapData={globalSettings:{systemEnabled:1,checkInterval:15,maxEntitiesPerZone:20,entityLifetime:600,minSpawnDistanceFromPlayer:30},zones:[]},
+    tiersData={tiers:{"1":{name:"Basic Zombies",classnames:["ZmbM_HunterOld_Autumn","ZmbF_SurvivorNormal_Blue","ZmbM_CitizenASkinny"]},"2":{name:"Military Zombies",classnames:["ZmbM_SoldierNormal","ZmbM_PatrolNormal_PautRev","ZmbM_usSoldier_normal"]},"3":{name:"Wildlife",classnames:["Animal_UrsusArctos","Animal_CanisLupus_Grey","Animal_SusScrofa"]}}},
+    MAP_SIZE=10000, viewSettings={offsetX:0,offsetY:0,scale:.08,minScale:.02,maxScale:2},
+    selectedZone=null,hoveredZone=null,isDragging=false,dragStart={x:0,y:0},contextMenuPos={x:0,y:0},showGrid=true,zoneCounter=0,needsRender=true,
+    displayFlags={spawnPoints:true,despawnRadius:false,zoneNames:true}, activeMap={name:'Chernarus',size:15360,url:'https://dayz.xam.nu/maps/chernarus/{z}/{x}/{y}.png'}, customMapData=null;
+
+/* ----------  init  ---------- */
+init();
+function init(){
+  canvas=document.getElementById('mapCanvas'); ctx=canvas.getContext('2d');
+  resizeCanvas(); setupEventListeners(); updateUI();
+  requestAnimationFrame(scheduleRender);
+}
+function scheduleRender(){if(needsRender){render();needsRender=false;}requestAnimationFrame(scheduleRender);}
+
+/* ----------  Map Management  ---------- */
+const MAPS={
+  chernarus:{name:'Chernarus',size:15360,url:'https://dayz.xam.nu/maps/chernarus/{z}/{x}/{y}.png'},
+  livonia:{name:'Livonia',size:12800,url:'https://dayz.xam.nu/maps/livonia/{z}/{x}/{y}.png'},
+  namalsk:{name:'Namalsk',size:12288,url:'https://dayz.xam.nu/maps/namalsk/{z}/{x}/{y}.png'},
+  deerisle:{name:'Deer Isle',size:16384,url:'https://dayz.xam.nu/maps/deerisle/{z}/{x}/{y}.png'},
+  esekser:{name:'Esseker',size:10240,url:'https://dayz.xam.nu/maps/esseker/{z}/{x}/{y}.png'},
+  rostow:{name:'Rostow',size:10240,url:'https://dayz.xam.nu/maps/rostow/{z}/{x}/{y}.png'},
+  pripyat:{name:'Pripyat',size:10240,url:'https://dayz.xam.nu/maps/pripyat/{z}/{x}/{y}.png'},
+  chiemsee:{name:'Chiemsee',size:10240,url:'https://dayz.xam.nu/maps/chiemsee/{z}/{x}/{y}.png'},
+  bitterroot:{name:'Bitterroot',size:8192,url:'https://dayz.xam.nu/maps/bitterroot/{z}/{x}/{y}.png'},
+  takistanplus:{name:'Takistan Plus',size:13312,url:'https://dayz.xam.nu/maps/takistanplus/{z}/{x}/{y}.png'},
+  iztek:{name:'Iztek',size:8192,url:'https://dayz.xam.nu/maps/iztek/{z}/{x}/{y}.png'},
+  melkart:{name:'Melkart',size:8192,url:'https://dayz.xam.nu/maps/melkart/{z}/{x}/{y}.png'},
+  sakhal:{name:'Sakhal',size:14336,url:'https://dayz.xam.nu/maps/sakhal/{z}/{x}/{y}.png'}
+};
+
+function switchMap(key){
+  if(key==='custom'){openCustomMapModal(); return;}
+  activeMap=MAPS[key]||MAPS.chernarus; MAP_SIZE=activeMap.size; customMapData=null;
+  loadMapImage(); resetView();
+}
+
+function loadMapImage(){
+  mapImage=new Image(); mapImage.crossOrigin='anonymous';
+  // Fallback-Placeholder
+  const ph=document.createElement('canvas'); ph.width=ph.height=2048;
+  const pctx=ph.getContext('2d');
+  const grad=pctx.createRadialGradient(1024,1024,0,1024,1024,1024);
+  grad.addColorStop(0,'#2a4a2a'); grad.addColorStop(.5,'#1a3a1a'); grad.addColorStop(1,'#0a2a0a');
+  pctx.fillStyle=grad; pctx.fillRect(0,0,2048,2048);
+  for(let i=0;i<100;i++){const x=Math.random()*2048,y=Math.random()*2048,r=Math.random()*100+50,op=Math.random()*.2+.1; const g=pctx.createRadialGradient(x,y,0,x,y,r); g.addColorStop(0,`rgba(50,80,50,${op})`); g.addColorStop(1,'rgba(50,80,50,0)'); pctx.fillStyle=g; pctx.fillRect(x-r,y-r,r*2,r*2);}
+  pctx.strokeStyle='rgba(255,255,255,.05)'; pctx.lineWidth=1; for(let i=0;i<=10;i++){const p=i*204.8; pctx.beginPath(); pctx.moveTo(p,0); pctx.lineTo(p,2048); pctx.stroke(); pctx.beginPath(); pctx.moveTo(0,p); pctx.lineTo(2048,p); pctx.stroke();}
+  pctx.fillStyle='rgba(255,255,255,.2)'; pctx.font='bold 48px Arial'; pctx.textAlign='center'; pctx.fillText(activeMap.name,1024,1024); pctx.font='24px Arial'; pctx.fillText(`${activeMap.size}m × ${activeMap.size}m`,1024,1080);
+  mapImage=ph;
+  // echtes Bild laden
+  const real=new Image(); real.crossOrigin='anonymous';
+  real.onload=()=>{mapImage=real; needsRender=true;};
+  real.onerror=()=>{}; // Fallback bleibt
+  real.src=activeMap.url.replace('{z}','3').replace('{x}','0').replace('{y}','0');
+}
+
+/* ----------  Custom Map Modal  ---------- */
+function openCustomMapModal(){document.getElementById('customModal').style.display='grid';}
+function closeCustomMapModal(){document.getElementById('customModal').style.display='none';}
+let customImgFile=null;
+function previewCustomMap(ev){
+  const file=ev.target.files[0]; if(!file)return;
+  const url=URL.createObjectURL(file);
+  const img=document.getElementById('mapPreview');
+  img.onload=()=>{customImgFile=img; updateStretchWarning();};
+  img.src=url;
+  document.getElementById('mapPlaceholder').style.display='none';
+  img.style.display='block';
+}
+function updateStretchWarning(){
+  const w=parseFloat(document.getElementById('customMapWidth').value)||0;
+  const h=parseFloat(document.getElementById('customMapHeight').value)||0;
+  const img=customImgFile;
+  if(!img||!w||!h)return;
+  const target=Math.max(w,h); const src=Math.max(img.naturalWidth,img.naturalHeight);
+  const stretch=Math.abs((target/src)-1)*100;
+  const bar=document.getElementById('stretchWarning');
+  const pct=document.getElementById('stretchPercent');
+  const msg=document.getElementById('stretchMessage');
+  bar.style.display='block'; pct.textContent=`${stretch.toFixed(1)}% stretch`;
+  if(stretch<3){bar.className='stretch-warning good'; msg.textContent='Excellent – minimal deviation.';}
+  else if(stretch<15){bar.className='stretch-warning warning'; msg.textContent=`Warning – spawns may deviate ~${(stretch*.3).toFixed(0)}m`;}
+  else{bar.className='stretch-warning bad'; msg.textContent=`High stretch – spawns may deviate ~${(stretch*.5).toFixed(0)}m`;}
+}
+function loadCustomMap(){
+  const name=document.getElementById('customMapName').value.trim();
+  const w=parseFloat(document.getElementById('customMapWidth').value)||0;
+  const h=parseFloat(document.getElementById('customMapHeight').value)||0;
+  if(!name||!w||!h||!customImgFile){alert('Please fill in all fields and select an image.'); return;}
+  customMapData={name:name,width:w,height:h,image:customImgFile};
+  MAP_SIZE=Math.max(w,h); activeMap={name:name,size:MAP_SIZE,url:null};
+  mapImage=customImgFile; closeCustomMapModal(); resetView();
+  // im Dropdown anzeigen
+  const sel=document.getElementById('mapSelect'); let opt=sel.querySelector('option[value="custom-loaded"]');
+  if(!opt){opt=document.createElement('option'); opt.value='custom-loaded'; sel.appendChild(opt);}
+  opt.textContent=`📁 ${name} (${w}×${h}m)`; sel.value='custom-loaded';
+}
+
+/* ----------  Rest der Logik (gekürzt, funktioniert wie vorher)  ---------- */
+function resizeCanvas(){const c=document.querySelector('.map-container'); canvas.width=c.clientWidth; canvas.height=c.clientHeight; needsRender=true;}
+function setupEventListeners(){
+  canvas.addEventListener('mousedown',handleMouseDown); canvas.addEventListener('mousemove',handleMouseMove); canvas.addEventListener('mouseup',handleMouseUp); canvas.addEventListener('wheel',handleWheel); canvas.addEventListener('contextmenu',handleRightClick);
+  window.addEventListener('resize',resizeCanvas); document.addEventListener('click',e=>{if(!e.target.closest('.context-menu'))hideContextMenu();});
+}
+function handleMouseDown(e){
+  if(e.button!==0)return; const rect=canvas.getBoundingClientRect(), x=e.clientX-rect.left, y=e.clientY-rect.top;
+  const zone=getZoneAtPoint(x,y); zone?selectZone(zone):(isDragging=true, dragStart={x:e.clientX,y:e.clientY}, canvas.style.cursor='grabbing');
+}
+function handleMouseMove(e){
+  const rect=canvas.getBoundingClientRect(), x=e.clientX-rect.left, y=e.clientY-rect.top; updateCoordinatesDisplay(x,y);
+  if(isDragging){viewSettings.offsetX+=(e.clientX-dragStart.x); viewSettings.offsetY+=(e.clientY-dragStart.y); dragStart={x:e.clientX,y:e.clientY}; needsRender=true;}
+  else{const zone=getZoneAtPoint(x,y); if(zone!==hoveredZone){hoveredZone=zone; canvas.style.cursor=zone?'pointer':'crosshair'; needsRender=true;}}
+}
+function handleMouseUp(e){if(e.button===0){isDragging=false; canvas.style.cursor=hoveredZone?'pointer':'crosshair';}}
+function handleWheel(e){e.preventDefault(); const d=e.deltaY>0?.9:1.1; viewSettings.scale=Math.max(viewSettings.minScale,Math.min(viewSettings.maxScale,viewSettings.scale*d)); needsRender=true;}
+function handleRightClick(e){e.preventDefault(); const rect=canvas.getBoundingClientRect(); contextMenuPos=screenToWorld(e.clientX-rect.left,e.clientY-rect.top); const menu=document.getElementById('contextMenu'), addItem=document.getElementById('addSpawnPointItem'); addItem.style.display=selectedZone?'block':'none'; let mx=e.clientX,my=e.clientY; if(mx+200>window.innerWidth)mx-=200; if(my+150>window.innerHeight)my-=150; menu.style.left=mx+'px'; menu.style.top=my+'px'; menu.style.display='block';}
+function worldToScreen(wx,wy){return{x:wx*viewSettings.scale+viewSettings.offsetX+canvas.width/2,y:wy*viewSettings.scale+viewSettings.offsetY+canvas.height/2};}
+function screenToWorld(sx,sy){return{x:(sx-canvas.width/2-viewSettings.offsetX)/viewSettings.scale,y:(sy-canvas.height/2-viewSettings.offsetY)/viewSettings.scale};}
+function worldToDayZ(wx,wy){const dayZX=(wx+MAP_SIZE/2), dayZY=0, dayZZ=(MAP_SIZE/2-wy); return{x:dayZX,y:dayZY,z:dayZZ};}
+function dayZToWorld(dayZX,dayZZ){return{x:dayZX-MAP_SIZE/2,y:MAP_SIZE/2-dayZZ};}
+
+/* ----------  Render  ---------- */
+function render(){
+  if(!ctx)return; ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle='#0a0a0a'; ctx.fillRect(0,0,canvas.width,canvas.height);
+  if(mapImage&&mapImage.complete){const ms=MAP_SIZE*viewSettings.scale, mx=(canvas.width/2)-ms/2+viewSettings.offsetX, my=(canvas.height/2)-ms/2+viewSettings.offsetY; ctx.save(); ctx.globalAlpha=.7; ctx.drawImage(mapImage,mx,my,ms,ms); ctx.restore();}
+  if(showGrid)drawGrid(); for(const z of mapData.zones)drawZone(z);
+}
+function drawGrid(){ctx.strokeStyle='rgba(255,255,255,.1)'; ctx.lineWidth=.5; const gs=1000; for(let i=0;i<=10;i++){const wx=i*gs-MAP_SIZE/2, s1=worldToScreen(wx,-MAP_SIZE/2), s2=worldToScreen(wx,MAP_SIZE/2); ctx.beginPath(); ctx.moveTo(s1.x,s1.y); ctx.lineTo(s2.x,s2.y); ctx.stroke(); const wy=i*gs-MAP_SIZE/2, sH1=worldToScreen(-MAP_SIZE/2,wy), sH2=worldToScreen(MAP_SIZE/2,wy); ctx.beginPath(); ctx.moveTo(sH1.x,sH1.y); ctx.lineTo(sH2.x,sH2.y); ctx.stroke();}}
+function drawZone(zone){
+  const coords=zone.position.split(' ').map(parseFloat), world=dayZToWorld(coords[0],coords[2]), scr=worldToScreen(world.x,world.y);
+  let fillCol=zone.enabled?'rgba(102,126,234,.2)':'rgba(245,87,108,.2)', borderCol=zone.enabled?'#667eea':'#f5576c';
+  if(zone===selectedZone){fillCol='rgba(66,230,149,.25)'; borderCol='#42e695';}
+  else if(zone===hoveredZone){fillCol=zone.enabled?'rgba(102,126,234,.35)':'rgba(245,87,108,.35)';}
+  const r=zone.triggerRadius*viewSettings.scale;
+  ctx.beginPath(); ctx.arc(scr.x,scr.y,r,0,Math.PI*2); ctx.fillStyle=fillCol; ctx.fill(); ctx.strokeStyle=borderCol; ctx.lineWidth=2; ctx.stroke();
+  if(displayFlags.despawnRadius){ctx.beginPath(); ctx.arc(scr.x,scr.y,zone.despawnDistance*viewSettings.scale,0,Math.PI*2); ctx.strokeStyle='rgba(255,255,255,.3)'; ctx.setLineDash([5,5]); ctx.stroke(); ctx.setLineDash([]);}
+  ctx.beginPath(); ctx.arc(scr.x,scr.y,5,0,Math.PI*2); ctx.fillStyle=borderCol; ctx.fill();
+  if(displayFlags.zoneNames){ctx.fillStyle='#fff'; ctx.font='bold 12px Arial'; ctx.textAlign='center'; ctx.fillText(zone.name,scr.x,scr.y-r-10);}
+  if(displayFlags.spawnPoints){zone.spawnPoints.forEach((sp,idx)=>{const c=sp.position.split(' ').map(parseFloat), w=dayZToWorld(c[0],c[2]), s=worldToScreen(w.x,w.y); ctx.beginPath(); ctx.arc(s.x,s.y,sp.radius*viewSettings.scale,0,Math.PI*2); ctx.fillStyle='rgba(255,165,0,.3)'; ctx.fill(); ctx.strokeStyle='#ffa500'; ctx.lineWidth=1; ctx.stroke(); if(zone===selectedZone){ctx.fillStyle='#fff'; ctx.font='10px Arial'; ctx.textAlign='center'; ctx.fillText(`SP ${idx+1}`,s.x,s.y-sp.radius*viewSettings.scale-8);}});}
+}
+
+/* ----------  Zone / Spawn Actions  ---------- */
+function createZoneAtCursor(){zoneCounter++; const dayZ=worldToDayZ(contextMenuPos.x,contextMenuPos.y); const z={name:`Zone_${zoneCounter}`,enabled:1,position:`${Math.round(dayZ.x)} ${Math.round(dayZ.y)} ${Math.round(dayZ.z)}`,triggerRadius:100,spawnChance:1,despawnOnExit:1,despawnDistance:150,respawnCooldown:300,spawnPoints:[]}; mapData.zones.push(z); selectZone(z); hideContextMenu(); updateUI(); needsRender=true;}
+function addSpawnPointAtCursor(){if(!selectedZone)return; const dayZ=worldToDayZ(contextMenuPos.x,contextMenuPos.y); selectedZone.spawnPoints.push({position:`${Math.round(dayZ.x)} ${Math.round(dayZ.y)} ${Math.round(dayZ.z)}`,radius:5,tierIds:[1],entities:3,useFixedHeight:0}); hideContextMenu(); updateUI(); renderSelectedZonePanel(); needsRender=true;}
+function selectZone(zone){selectedZone=zone; updateUI(); renderSelectedZonePanel(); document.querySelectorAll('.tab')[1].click(); needsRender=true;}
+function getZoneAtPoint(sx,sy){const w=screenToWorld(sx,sy); for(const z of mapData.zones){const c=z.position.split(' ').map(parseFloat), zw=dayZToWorld(c[0],c[2]); const dist=Math.hypot(w.x-zw.x,w.y-zw.y); if(dist<=z.triggerRadius)return z;} return null;}
+function updateUI(){renderZonesList(); renderTiersList();}
+function renderZonesList(){const cont=document.getElementById('zonesList'); if(mapData.zones.length===0){cont.innerHTML='<div class="empty-state"><div class="empty-state-icon">📍</div><div>No zones created yet</div><div style="font-size:11px;margin-top:5px">Right-click on the map to add zones</div></div>'; return;} cont.innerHTML=mapData.zones.map(z=>{const sel=z===selectedZone,co=z.position.split(' ').map(parseFloat); return`<div class="zone-item ${sel?'selected':''}" onclick="selectZoneByName('${z.name}')"><div class="zone-name">${z.name}</div><div class="zone-info">Pos: ${co[0].toFixed(0)},${co[2].toFixed(0)}<br>Radius: ${z.triggerRadius}m | SP: ${z.spawnPoints.length}<br>Status: ${z.enabled?'✅ Active':'❌ Inactive'}</div></div>`;}).join('');}
+function renderSelectedZonePanel(){const ae=document.activeElement?document.activeElement.id:null; const p=document.getElementById('selectedZonePanel'); if(!selectedZone){p.innerHTML='<div class="empty-state"><div class="empty-state-icon">🎯</div><div>No zone selected</div><div style="font-size:11px;margin-top:5px">Click on a zone to edit</div></div>'; return;} p.innerHTML=`
+<h3 style="color:#667eea;margin-bottom:15px">${selectedZone.name}</h3>
+<div class="form-group"><label>Zone Name</label><input id="inp-name" type="text" value="${selectedZone.name}" onchange="updateZoneProperty('name',this.value)"></div>
+<div class="form-group"><label>Position (X Y Z)</label><input id="inp-position" type="text" value="${selectedZone.position}" onchange="updateZoneProperty('position',this.value)"></div>
+<div class="form-row">
+  <div class="form-group"><label>Enabled</label><select id="inp-enabled" onchange="updateZoneProperty('enabled',parseInt(this.value))"><option value="1" ${selectedZone.enabled===1?'selected':''}>Yes</option><option value="0" ${selectedZone.enabled===0?'selected':''}>No</option></select></div>
+  <div class="form-group"><label>Trigger Radius (m)</label><input id="inp-triggerRadius" type="number" value="${selectedZone.triggerRadius}" onchange="updateZoneProperty('triggerRadius',parseFloat(this.value))"></div>
+</div>
+<div class="form-row">
+  <div class="form-group"><label>Spawn Chance</label><input id="inp-spawnChance" type="number" min="0" max="1" step="0.1" value="${selectedZone.spawnChance}" onchange="updateZoneProperty('spawnChance',parseFloat(this.value))"></div>
+  <div class="form-group"><label>Despawn on Exit</label><select id="inp-despawnOnExit" onchange="updateZoneProperty('despawnOnExit',parseInt(this.value))"><option value="1" ${selectedZone.despawnOnExit===1?'selected':''}>Yes</option><option value="0" ${selectedZone.despawnOnExit===0?'selected':''}>No</option></select></div>
+</div>
+<div class="form-row">
+  <div class="form-group"><label>Despawn Distance (m)</label><input id="inp-despawnDistance" type="number" value="${selectedZone.despawnDistance}" onchange="updateZoneProperty('despawnDistance',parseFloat(this.value))"></div>
+  <div class="form-group"><label>Respawn Cooldown (s)</label><input id="inp-respawnCooldown" type="number" value="${selectedZone.respawnCooldown}" onchange="updateZoneProperty('respawnCooldown',parseFloat(this.value))"></div>
+</div>
+<h4 style="margin:20px 0 10px 0;color:#ffa500">Spawn Points</h4>
+<div id="spawnPointsList">${renderSpawnPointsList()}</div>
+<button class="btn btn-success" style="width:100%;margin-top:10px" onclick="selectedZone&&addSpawnPointAtCursor()">+ Add Spawn Point</button>
+<button class="btn btn-danger" style="width:100%;margin-top:10px" onclick="deleteSelectedZone()">Delete Zone</button>`; if(ae){const el=document.getElementById(ae); if(el){el.focus(); const len=el.value.length; el.setSelectionRange(len,len);}}}
+function renderSpawnPointsList(){if(!selectedZone)return''; return selectedZone.spawnPoints.map((sp,i)=>`<div style="background:#1a1a1a;padding:10px;border-radius:6px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:bold;color:#ffa500">Spawn Point ${i+1}</span><button class="btn btn-danger btn-small" onclick="removeSpawnPoint(${i})">Remove</button></div><div class="form-group" style="margin-top:10px"><label>Position</label><input id="sp-pos-${i}" type="text" value="${sp.position}" onchange="updateSpawnPoint(${i},'position',this.value)"></div><div class="form-row"><div class="form-group"><label>Radius</label><input id="sp-radius-${i}" type="number" value="${sp.radius}" onchange="updateSpawnPoint(${i},'radius',parseFloat(this.value))"></div><div class="form-group"><label>Entities</label><input id="sp-entities-${i}" type="number" value="${sp.entities}" onchange="updateSpawnPoint(${i},'entities',parseInt(this.value))"></div></div><div class="form-group"><label>Tier IDs (comma-separated)</label><input id="sp-tierIds-${i}" type="text" value="${sp.tierIds.join(', ')}" onchange="updateSpawnPointTiers(${i},this.value)"></div><div class="form-group"><label style="display:flex;align-items:center;gap:6px"><input type="checkbox" ${sp.useFixedHeight?'checked':''} onchange="updateSpawnPoint(${i},'useFixedHeight',this.checked?1:0)"> Use Fixed Height</label></div></div>`).join('');}
+function renderTiersList(){const cont=document.getElementById('tiersList'); cont.innerHTML=Object.entries(tiersData.tiers).map(([id,t])=>`<div style="background:#1a1a1a;padding:10px;border-radius:6px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center"><strong>Tier ${id}: ${t.name}</strong><button class="btn btn-danger btn-small" onclick="removeTier('${id}')">Remove</button></div><div class="form-group" style="margin-top:10px"><label>Name</label><input type="text" value="${t.name}" onchange="updateTier('${id}','name',this.value)"></div><div class="form-group"><label>Classnames (comma-separated)</label><textarea rows="2" style="width:100%;padding:8px;background:#2a2a2a;border:1px solid #3a3a3a;border-radius:4px;color:#e0e0e0" onchange="updateTierClassnames('${id}',this.value)">${t.classnames.join(', ')}</textarea></div></div>`).join('');}
+function addTier(){const id=Math.max(...Object.keys(tiersData.tiers).map(Number),0)+1; tiersData.tiers[id]={name:`New Tier ${id}`,classnames:[]}; renderTiersList();}
+function removeTier(id){delete tiersData.tiers[id]; renderTiersList();}
+function updateZoneProperty(p,v){if(!selectedZone)return; selectedZone[p]=v; needsRender=true; updateUI();}
+function updateSpawnPoint(i,p,v){if(!selectedZone)return; selectedZone.spawnPoints[i][p]=v; needsRender=true; renderSelectedZonePanel();}
+function updateSpawnPointTiers(i,val){if(!selectedZone)return; selectedZone.spawnPoints[i].tierIds=val.split(',').map(x=>parseInt(x.trim())).filter(n=>!isNaN(n));}
+function removeSpawnPoint(i){if(!selectedZone)return; selectedZone.spawnPoints.splice(i,1); needsRender=true; renderSelectedZonePanel();}
+function deleteSelectedZone(){if(!selectedZone)return; const i=mapData.zones.indexOf(selectedZone); if(i>-1){mapData.zones.splice(i,1); selectedZone=null; needsRender=true; updateUI();}}
+function zoomIn(){viewSettings.scale=Math.min(viewSettings.maxScale,viewSettings.scale*1.2); needsRender=true;}
+function zoomOut(){viewSettings.scale=Math.max(viewSettings.minScale,viewSettings.scale*.8); needsRender=true;}
+function resetView(){viewSettings.offsetX=0; viewSettings.offsetY=0; viewSettings.scale=.08; needsRender=true;}
+function toggleGrid(){showGrid=!showGrid; needsRender=true;}
+function toggleDisplay(k,v){displayFlags[k]=v; needsRender=true;}
+function exportZones(){const data=JSON.stringify(mapData,null,2), uri='data:application/json;charset=utf-8,'+encodeURIComponent(data); const a=document.createElement('a'); a.href=uri; a.download='Zones.json'; a.click();}
+function exportTiers(){const data=JSON.stringify(tiersData,null,2), uri='data:application/json;charset=utf-8,'+encodeURIComponent(data); const a=document.createElement('a'); a.href=uri; a.download='Tiers.json'; a.click();}
+function importZonesFile(e){const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=function(ev){try{mapData=JSON.parse(ev.target.result); selectedZone=null; needsRender=true; updateUI(); alert('Zones.json imported!');}catch(err){alert('Error: '+err.message);}}; r.readAsText(f);}
+function importTiersFile(e){const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=function(ev){try{tiersData=JSON.parse(ev.target.result); renderTiersList(); alert('Tiers.json imported!');}catch(err){alert('Error: '+err.message);}}; r.readAsText(f);}
+function loadSampleData(){
+  mapData={globalSettings:{systemEnabled:1,checkInterval:15,maxEntitiesPerZone:20,entityLifetime:600,minSpawnDistanceFromPlayer:30},zones:[
+    {name:"Military_Base",enabled:1,position:"4500 0 6500",triggerRadius:200,spawnChance:.8,despawnOnExit:1,despawnDistance:300,respawnCooldown:450,spawnPoints:[{position:"4520 0 6520",radius:10,tierIds:[2],entities:5,useFixedHeight:0}]},
+    {name:"Forest_Wildlife",enabled:1,position:"2000 0 3000",triggerRadius:300,spawnChance:.6,despawnOnExit:0,despawnDistance:400,respawnCooldown:600,spawnPoints:[{position:"2050 0 3050",radius:15,tierIds:[3],entities:2,useFixedHeight:0}]}
+  ]}; zoneCounter=mapData.zones.length; needsRender=true; updateUI();
+}
+function clearAll(){if(confirm('Clear all zones?')){mapData.zones=[]; selectedZone=null; zoneCounter=0; needsRender=true; updateUI();}}
+function selectZoneByName(name){const z=mapData.zones.find(zz=>zz.name===name); if(z)selectZone(z);}
+function switchTab(tabName,el){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active')); el.classList.add('active'); document.getElementById(tabName+'Tab').classList.add('active');}
+function updateCoordinatesDisplay(sx,sy){const w=screenToWorld(sx,sy), d=worldToDayZ(w.x,w.y); document.getElementById('mouseCoords').textContent=`${sx.toFixed(0)}, ${sy.toFixed(0)}`; document.getElementById('gameCoords').textContent=`${d.x.toFixed(0)}, ${d.y.toFixed(0)}, ${d.z.toFixed(0)}`;}
+function hideContextMenu(){document.getElementById('contextMenu').style.display='none';}
+</script>
+</body>
+</html>
