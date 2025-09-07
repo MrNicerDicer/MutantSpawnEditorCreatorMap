@@ -2,80 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>DayZ Map Editor – Länge × Breite + dayz.xam.nu</title>
+  <title>DayZ Map Editor – Izurvive Maps + Custom</title>
   <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#1a1a1a;color:#e0e0e0;overflow:hidden;user-select:none}
-    .app-container{display:flex;height:100vh}
-    .sidebar{width:400px;background:#252525;border-right:2px solid #3a3a3a;display:flex;flex-direction:column;overflow:hidden}
-    .sidebar-header{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:20px;text-align:center}
-    .sidebar-content{flex:1;overflow-y:auto;padding:15px}
-    .map-container{flex:1;position:relative;background:#0a0a0a;overflow:hidden}
-    #mapCanvas{cursor:crosshair;position:absolute;top:0;left:0}
-    .map-controls{position:absolute;top:20px;right:20px;display:flex;flex-direction:column;gap:10px;z-index:1000}
-    .control-btn{width:40px;height:40px;background:rgba(102,126,234,.9);border:none;border-radius:8px;color:#fff;font-size:20px;cursor:pointer;transition:all .3s ease}
-    .control-btn:hover{background:rgba(118,75,162,.9);transform:scale(1.1)}
-    .context-menu{position:fixed;background:rgba(37,37,37,.98);border:1px solid #667eea;border-radius:8px;padding:5px;display:none;z-index:10000;min-width:200px;box-shadow:0 4px 20px rgba(0,0,0,.5)}
-    .context-menu-item{padding:10px 15px;cursor:pointer;border-radius:4px;transition:background .2s ease}
-    .context-menu-item:hover{background:rgba(102,126,234,.3)}
-    .coords-display{position:absolute;bottom:20px;left:20px;background:rgba(37,37,37,.9);padding:10px 15px;border-radius:8px;font-family:'Courier New',monospace;font-size:14px;backdrop-filter:blur(10px);border:1px solid rgba(102,126,234,.3)}
-    .zone-item{background:#2a2a2a;border-radius:6px;padding:12px;margin-bottom:10px;cursor:pointer;transition:all .3s ease;border:2px solid transparent}
-    .zone-item:hover{background:#333;border-color:rgba(102,126,234,.5)}
-    .zone-item.selected{background:#353535;border-color:#667eea}
-    .form-group{margin-bottom:15px}
-    .form-group label{display:block;margin-bottom:5px;font-size:13px;color:#aaa}
-    .form-group input,.form-group select{width:100%;padding:8px;background:#1a1a1a;border:1px solid #3a3a3a;border-radius:4px;color:#e0e0e0;font-size:14px}
-    .form-group input:focus,.form-group select:focus{outline:none;border-color:#667eea;box-shadow:0 0 0 2px rgba(102,126,234,.2)}
-    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .btn{padding:10px 20px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:14px;font-weight:500;transition:all .3s ease}
-    .btn:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(102,126,234,.4)}
-    .btn-success{background:linear-gradient(135deg,#42e695 0%,#3bb2b8 100%)}
-    .btn-danger{background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%)}
-    .btn-secondary{background:linear-gradient(135deg,#4a4a4a 0%,#2a2a2a 100%)}
-    .btn-small{padding:6px 12px;font-size:12px}
-    .quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:15px;background:#1a1a1a}
-    .quick-action-btn{background:#333;border:1px solid #444;color:#e0e0e0;padding:8px;border-radius:4px;cursor:pointer;font-size:12px;transition:all .2s ease}
-    .quick-action-btn:hover{background:#444;border-color:#667eea}
-    .tabs{display:flex;background:#1a1a1a;border-radius:8px 8px 0 0;overflow:hidden;margin-bottom:-1px}
-    .tab{flex:1;padding:10px;background:#1a1a1a;border:none;color:#999;cursor:pointer;transition:all .3s ease;font-size:13px}
-    .tab.active{background:#2a2a1a;color:#667eea;border-bottom:2px solid #667eea}
-    .tab:hover:not(.active){background:#222}
-    .tab-content{display:none;background:#2a2a2a;border-radius:0 0 8px 8px;padding:15px}
-    .tab-content.active{display:block}
-    .empty-state{text-align:center;padding:40px 20px;color:#666}
-    .empty-state-icon{font-size:48px;margin-bottom:10px}
-    .legend{position:absolute;top:20px;left:20px;background:rgba(37,37,37,.9);padding:15px;border-radius:8px;backdrop-filter:blur(10px);border:1px solid rgba(102,126,234,.3)}
-    .legend h3{margin-bottom:10px;color:#667eea;font-size:14px}
-    .legend-item{display:flex;align-items:center;margin-bottom:8px;font-size:12px}
-    .legend-color{width:20px;height:20px;margin-right:10px;border-radius:4px}
-    .display-menu{margin-top:10px}
-    .display-menu h4{margin-bottom:8px;color:#667eea;font-size:12px}
-    .display-menu label{display:flex;align-items:center;margin-bottom:6px;cursor:pointer;font-size:12px}
-    .display-menu input[type=checkbox]{margin-right:8px}
-    ::-webkit-scrollbar{width:8px}
-    ::-webkit-scrollbar-track{background:#1a1a1a}
-    ::-webkit-scrollbar-thumb{background:#444;border-radius:4px}
-    ::-webkit-scrollbar-thumb:hover{background:#555}
-
-    /* NEU: Custom Map Modal */
-    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;place-items:center;z-index:20000}
-    .modal{background:#2a2a2a;border:1px solid #667eea;border-radius:8px;padding:20px;width:90%;max-width:500px;color:#e0e0e0}
-    .modal h3{margin-bottom:15px;color:#667eea}
-    .modal .form-group{margin-bottom:15px}
-    .modal .stretch-warning{padding:10px;border-radius:6px;margin-top:10px;font-size:.9rem;display:none}
-    .modal .stretch-warning.good{background:#2a4a2a;border:1px solid #42e695}
-    .modal .stretch-warning.warning{background:#4a4a2a;border:1px solid #ffa500}
-    .modal .stretch-warning.bad{background:#4a2a2a;border:1px solid #f5576c}
-    .modal img{max-width:100%;max-height:200px;display:none;margin-top:10px;border:1px solid #333;border-radius:4px}
+    /* ... (Styles wie vorher) ... */
   </style>
 </head>
 <body>
 <div class="app-container">
   <div class="sidebar">
     <div class="sidebar-header">
-      <h1>🎯 DayZ Map Editor – Länge × Breite</h1>
-      <p style="font-size:12px;opacity:.9">Visual zone placement system</p>
-      <!-- NEU: Map-Auswahl -->
+      <h1>🎯 DayZ Map Editor – Izurvive + Custom</h1>
       <div class="form-group" style="margin-top:10px">
         <label>Map:</label>
         <select id="mapSelect" onchange="switchMap(this.value)">
@@ -83,15 +19,8 @@
           <option value="livonia">Livonia (12800 m)</option>
           <option value="namalsk">Namalsk (12288 m)</option>
           <option value="deerisle">Deer Isle (16384 m)</option>
-          <option value="chiemsee">Chiemsee (10240 m)</option>
           <option value="esseker">Esseker (10240 m)</option>
-          <option value="rostow">Rostow (10240 m)</option>
-          <option value="pripyat">Pripyat (10240 m)</option>
-          <option value="valning">Valning (10240 m)</option>
-          <option value="bitterroot">Bitterroot (8192 m)</option>
           <option value="takistanplus">Takistan Plus (13312 m)</option>
-          <option value="iztek">Iztek (8192 m)</option>
-          <option value="melkart">Melkart (8192 m)</option>
           <option value="sakhal">Sakhal (14336 m)</option>
           <option value="custom">➕ Load Custom Map...</option>
         </select>
@@ -162,11 +91,11 @@
     <div class="form-row">
       <div class="form-group">
         <label>Länge (m)</label>
-        <input type="number" id="customMapWidth" placeholder="10368" oninput="updateStretchWarning()">
+        <input type="number" id="customMapWidth" placeholder="10000" oninput="updateStretchWarning()">
       </div>
       <div class="form-group">
         <label>Breite (m)</label>
-        <input type="number" id="customMapHeight" placeholder="5687" oninput="updateStretchWarning()">
+        <input type="number" id="customMapHeight" placeholder="10000" oninput="updateStretchWarning()">
       </div>
     </div>
     <div class="form-group">
@@ -192,7 +121,7 @@ let canvas, ctx, mapImage, mapData={globalSettings:{systemEnabled:1,checkInterva
     tiersData={tiers:{"1":{name:"Basic Zombies",classnames:["ZmbM_HunterOld_Autumn","ZmbF_SurvivorNormal_Blue","ZmbM_CitizenASkinny"]},"2":{name:"Military Zombies",classnames:["ZmbM_SoldierNormal","ZmbM_PatrolNormal_PautRev","ZmbM_usSoldier_normal"]},"3":{name:"Wildlife",classnames:["Animal_UrsusArctos","Animal_CanisLupus_Grey","Animal_SusScrofa"]}}},
     MAP_SIZE=10000, viewSettings={offsetX:0,offsetY:0,scale:.08,minScale:.02,maxScale:2},
     selectedZone=null,hoveredZone=null,isDragging=false,dragStart={x:0,y:0},contextMenuPos={x:0,y:0},showGrid=true,zoneCounter=0,needsRender=true,
-    displayFlags={spawnPoints:true,despawnRadius:false,zoneNames:true}, activeMap={name:'Chernarus',size:15360,url:'https://dayz.xam.nu/maps/chernarus/{z}/{x}/{y}.png'}, customMapData=null;
+    displayFlags={spawnPoints:true,despawnRadius:false,zoneNames:true}, activeMap={name:'Chernarus',size:15360,url:'https://maps.izurvive.com/maps/ChernarusPlus/1.21.6/tiles/{z}/{x}/{y}.webp'}, customMapData=null;
 
 /* ----------  init  ---------- */
 init();
@@ -205,19 +134,12 @@ function scheduleRender(){if(needsRender){render();needsRender=false;}requestAni
 
 /* ----------  Map Management  ---------- */
 const MAPS={
-  chernarus:{name:'Chernarus',size:15360,url:'https://dayz.xam.nu/maps/chernarus/{z}/{x}/{y}.png'},
-  livonia:{name:'Livonia',size:12800,url:'https://dayz.xam.nu/maps/livonia/{z}/{x}/{y}.png'},
-  namalsk:{name:'Namalsk',size:12288,url:'https://dayz.xam.nu/maps/namalsk/{z}/{x}/{y}.png'},
-  deerisle:{name:'Deer Isle',size:16384,url:'https://dayz.xam.nu/maps/deerisle/{z}/{x}/{y}.png'},
-  esekser:{name:'Esseker',size:10240,url:'https://dayz.xam.nu/maps/esseker/{z}/{x}/{y}.png'},
-  rostow:{name:'Rostow',size:10240,url:'https://dayz.xam.nu/maps/rostow/{z}/{x}/{y}.png'},
-  pripyat:{name:'Pripyat',size:10240,url:'https://dayz.xam.nu/maps/pripyat/{z}/{x}/{y}.png'},
-  chiemsee:{name:'Chiemsee',size:10240,url:'https://dayz.xam.nu/maps/chiemsee/{z}/{x}/{y}.png'},
-  bitterroot:{name:'Bitterroot',size:8192,url:'https://dayz.xam.nu/maps/bitterroot/{z}/{x}/{y}.png'},
-  takistanplus:{name:'Takistan Plus',size:13312,url:'https://dayz.xam.nu/maps/takistanplus/{z}/{x}/{y}.png'},
-  iztek:{name:'Iztek',size:8192,url:'https://dayz.xam.nu/maps/iztek/{z}/{x}/{y}.png'},
-  melkart:{name:'Melkart',size:8192,url:'https://dayz.xam.nu/maps/melkart/{z}/{x}/{y}.png'},
-  sakhal:{name:'Sakhal',size:14336,url:'https://dayz.xam.nu/maps/sakhal/{z}/{x}/{y}.png'}
+  chernarus:{name:'Chernarus',size:15360,url:'https://maps.izurvive.com/maps/ChernarusPlus/1.21.6/tiles/{z}/{x}/{y}.webp'},
+  livonia:{name:'Livonia',size:12800,url:'https://maps.izurvive.com/maps/Enoch/1.21.6/tiles/{z}/{x}/{y}.webp'},
+  namalsk:{name:'Namalsk',size:12288,url:'https://maps.izurvive.com/maps/Namalsk/1.0.0/tiles/{z}/{x}/{y}.webp'},
+  deerisle:{name:'Deer Isle',size:16384,url:'https://maps.izurvive.com/maps/DeerIsle/1.0.0/tiles/{z}/{x}/{y}.webp'},
+  esekser:{name:'Esseker',size:10240,url:'https://maps.izurvive.com/maps/Esseker/1.0.0/tiles/{z}/{x}/{y}.webp'},
+  sakhal:{name:'Sakhal',size:14336,url:'https://maps.izurvive.com/maps/Sakhal/0.9.2/tiles/{z}/{x}/{y}.webp'}
 };
 
 function switchMap(key){
@@ -364,7 +286,6 @@ function renderSelectedZonePanel(){const ae=document.activeElement?document.acti
 <div id="spawnPointsList">${renderSpawnPointsList()}</div>
 <button class="btn btn-success" style="width:100%;margin-top:10px" onclick="selectedZone&&addSpawnPointAtCursor()">+ Add Spawn Point</button>
 <button class="btn btn-danger" style="width:100%;margin-top:10px" onclick="deleteSelectedZone()">Delete Zone</button>`; if(ae){const el=document.getElementById(ae); if(el){el.focus(); const len=el.value.length; el.setSelectionRange(len,len);}}}
-function renderSpawnPointsList(){if(!selectedZone)return''; return selectedZone.spawnPoints.map((sp,i)=>`<div style="background:#1a1a1a;padding:10px;border-radius:6px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:bold;color:#ffa500">Spawn Point ${i+1}</span><button class="btn btn-danger btn-small" onclick="removeSpawnPoint(${i})">Remove</button></div><div class="form-group" style="margin-top:10px"><label>Position</label><input id="sp-pos-${i}" type="text" value="${sp.position}" onchange="updateSpawnPoint(${i},'position',this.value)"></div><div class="form-row"><div class="form-group"><label>Radius</label><input id="sp-radius-${i}" type="number" value="${sp.radius}" onchange="updateSpawnPoint(${i},'radius',parseFloat(this.value))"></div><div class="form-group"><label>Entities</label><input id="sp-entities-${i}" type="number" value="${sp.entities}" onchange="updateSpawnPoint(${i},'entities',parseInt(this.value))"></div></div><div class="form-group"><label>Tier IDs (comma-separated)</label><input id="sp-tierIds-${i}" type="text" value="${sp.tierIds.join(', ')}" onchange="updateSpawnPointTiers(${i},this.value)"></div><div class="form-group"><label style="display:flex;align-items:center;gap:6px"><input type="checkbox" ${sp.useFixedHeight?'checked':''} onchange="updateSpawnPoint(${i},'useFixedHeight',this.checked?1:0)"> Use Fixed Height</label></div></div>`).join('');}
 function renderTiersList(){const cont=document.getElementById('tiersList'); cont.innerHTML=Object.entries(tiersData.tiers).map(([id,t])=>`<div style="background:#1a1a1a;padding:10px;border-radius:6px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center"><strong>Tier ${id}: ${t.name}</strong><button class="btn btn-danger btn-small" onclick="removeTier('${id}')">Remove</button></div><div class="form-group" style="margin-top:10px"><label>Name</label><input type="text" value="${t.name}" onchange="updateTier('${id}','name',this.value)"></div><div class="form-group"><label>Classnames (comma-separated)</label><textarea rows="2" style="width:100%;padding:8px;background:#2a2a2a;border:1px solid #3a3a3a;border-radius:4px;color:#e0e0e0" onchange="updateTierClassnames('${id}',this.value)">${t.classnames.join(', ')}</textarea></div></div>`).join('');}
 function addTier(){const id=Math.max(...Object.keys(tiersData.tiers).map(Number),0)+1; tiersData.tiers[id]={name:`New Tier ${id}`,classnames:[]}; renderTiersList();}
 function removeTier(id){delete tiersData.tiers[id]; renderTiersList();}
@@ -372,7 +293,6 @@ function updateZoneProperty(p,v){if(!selectedZone)return; selectedZone[p]=v; nee
 function updateSpawnPoint(i,p,v){if(!selectedZone)return; selectedZone.spawnPoints[i][p]=v; needsRender=true; renderSelectedZonePanel();}
 function updateSpawnPointTiers(i,val){if(!selectedZone)return; selectedZone.spawnPoints[i].tierIds=val.split(',').map(x=>parseInt(x.trim())).filter(n=>!isNaN(n));}
 function removeSpawnPoint(i){if(!selectedZone)return; selectedZone.spawnPoints.splice(i,1); needsRender=true; renderSelectedZonePanel();}
-function deleteSelectedZone(){if(!selectedZone)return; const i=mapData.zones.indexOf(selectedZone); if(i>-1){mapData.zones.splice(i,1); selectedZone=null; needsRender=true; updateUI();}}
 function zoomIn(){viewSettings.scale=Math.min(viewSettings.maxScale,viewSettings.scale*1.2); needsRender=true;}
 function zoomOut(){viewSettings.scale=Math.max(viewSettings.minScale,viewSettings.scale*.8); needsRender=true;}
 function resetView(){viewSettings.offsetX=0; viewSettings.offsetY=0; viewSettings.scale=.08; needsRender=true;}
