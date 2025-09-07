@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>DayZ Map Editor – Custom Maps + dayz.xam.nu</title>
+  <title>DayZ Map Editor – Länge × Breite + dayz.xam.nu</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#1a1a1a;color:#e0e0e0;overflow:hidden;user-select:none}
@@ -73,7 +73,7 @@
 <div class="app-container">
   <div class="sidebar">
     <div class="sidebar-header">
-      <h1>🎯 DayZ Map Editor – Custom Maps</h1>
+      <h1>🎯 DayZ Map Editor – Länge × Breite</h1>
       <p style="font-size:12px;opacity:.9">Visual zone placement system</p>
       <!-- NEU: Map-Auswahl -->
       <div class="form-group" style="margin-top:10px">
@@ -161,11 +161,11 @@
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label>Width (m)</label>
+        <label>Länge (m)</label>
         <input type="number" id="customMapWidth" placeholder="10368" oninput="updateStretchWarning()">
       </div>
       <div class="form-group">
-        <label>Height (m)</label>
+        <label>Breite (m)</label>
         <input type="number" id="customMapHeight" placeholder="5687" oninput="updateStretchWarning()">
       </div>
     </div>
@@ -222,6 +222,7 @@ const MAPS={
 
 function switchMap(key){
   if(key==='custom'){openCustomMapModal(); return;}
+  if(key==='custom-loaded'){if(customMapData)applyCustomMap(); return;}
   activeMap=MAPS[key]||MAPS.chernarus; MAP_SIZE=activeMap.size; customMapData=null;
   loadMapImage(); resetView();
 }
@@ -285,6 +286,12 @@ function loadCustomMap(){
   const sel=document.getElementById('mapSelect'); let opt=sel.querySelector('option[value="custom-loaded"]');
   if(!opt){opt=document.createElement('option'); opt.value='custom-loaded'; sel.appendChild(opt);}
   opt.textContent=`📁 ${name} (${w}×${h}m)`; sel.value='custom-loaded';
+}
+function applyCustomMap(){
+  if(!customMapData)return;
+  MAP_SIZE=Math.max(customMapData.width,customMapData.height);
+  activeMap={name:customMapData.name,size:MAP_SIZE,url:null};
+  mapImage=customMapData.image; resetView(); needsRender=true;
 }
 
 /* ----------  Rest der Logik (gekürzt, funktioniert wie vorher)  ---------- */
